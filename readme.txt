@@ -1,9 +1,9 @@
 === Preferred Languages ===
 Contributors: swissspidy
 Tags: internationalization, i18n, localization, l10n, language, locale, translation
-Requires at least: 4.9
+Requires at least: 5.5
 Tested up to: 5.5
-Requires PHP: 5.2
+Requires PHP: 5.6
 Stable tag: 1.6.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -34,6 +34,10 @@ If you want to get involved, check out [open issues](https://github.com/swissspi
 For the plugin's changelog, please head over to [the GitHub repository](https://github.com/swissspidy/preferred-languages).
 
 == Upgrade Notice ==
+
+= 2.0.0 =
+
+The whole UI has been completely refactored to be more robust.
 
 = 1.6.0 =
 

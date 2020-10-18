@@ -401,38 +401,26 @@ function preferred_languages_load_script_translation_file( $file ) {
  * @since 1.0.0
  */
 function preferred_languages_register_scripts() {
-	$suffix = SCRIPT_DEBUG ? '' : '.min';
+	$asset_file            = plugin_dir_path( __DIR__ ) . 'build/preferred-languages.asset.php';
+	$asset                 = is_readable( $asset_file ) ? require $asset_file : array();
+	$asset['dependencies'] = isset( $asset['dependencies'] ) ? $asset['dependencies'] : array();
+	$asset['version']      = isset( $asset['version'] ) ? $asset['version'] : false;
 
 	wp_register_script(
 		'preferred-languages',
-		plugin_dir_url( dirname( __FILE__ ) ) . 'js/preferred-languages' . $suffix . '.js',
-		array(
-			'jquery',
-			'jquery-ui-sortable',
-			'wp-a11y',
-		),
-		'20190319',
+		plugin_dir_url( __DIR__ ) . 'build/preferred-languages.js',
+		$asset['dependencies'],
+		$asset['version'],
 		true
 	);
 
-	wp_localize_script(
-		'preferred-languages',
-		'preferredLanguages',
-		array(
-			'l10n' => array(
-				'localeAdded'   => __( 'Locale added to list', 'preferred-languages' ),
-				'localeRemoved' => __( 'Locale removed from list', 'preferred-languages' ),
-				'movedUp'       => __( 'Locale moved up', 'preferred-languages' ),
-				'movedDown'     => __( 'Locale moved down', 'preferred-languages' ),
-			),
-		)
-	);
+	wp_set_script_translations( 'preferred-languages', 'preferred-languages' );
 
 	wp_register_style(
 		'preferred-languages',
-		plugin_dir_url( dirname( __FILE__ ) ) . 'css/preferred-languages.css',
-		array(),
-		'20190107',
+		plugin_dir_url( dirname( __FILE__ ) ) . 'build/preferred-languages.css',
+		array( 'wp-components' ),
+		$asset['version'],
 		'screen'
 	);
 
@@ -491,7 +479,6 @@ function preferred_languages_personal_options( $user ) {
 				array(
 					'selected'                    => preferred_languages_get_user_list( $user ),
 					'show_available_translations' => false,
-					'show_option_site_default'    => true,
 					'show_option_en_US'           => true,
 				)
 			);
@@ -509,190 +496,117 @@ function preferred_languages_personal_options( $user ) {
  * @param array $args Optional. Arguments to pass to the form.
  */
 function preferred_languages_display_form( $args = array() ) {
+	static $instance = 0;
+	$instance++;
+
 	wp_enqueue_script( 'preferred-languages' );
 
-	$args = wp_parse_args(
+	$args = (array) wp_parse_args(
 		$args,
 		array(
 			'selected'                    => array(),
 			'show_available_translations' => current_user_can( 'install_languages' ),
-			'show_option_site_default'    => false,
 			'show_option_en_US'           => false,
 		)
 	);
 
 	require_once ABSPATH . 'wp-admin/includes/translation-install.php';
-	$translations = wp_get_available_translations();
 
-	$languages = get_available_languages();
+	$translations = array_map(
+		static function ( $translation ) {
+				/* @var array $translation */
+				return array(
+					'locale'     => $translation['language'],
+					'nativeName' => $translation['native_name'],
+					'lang'       => current( $translation['iso'] ),
+					'installed'  => false,
+				);
+		},
+		wp_get_available_translations()
+	);
+
+	$languages = array_map(
+		static function( $language ) use ( &$translations ) {
+				$result = isset( $translations[ $language ] ) ? $translations[ $language ] : array(
+					'locale'     => $language,
+					'nativeName' => $language,
+				);
+				unset( $translations[ $language ] );
+
+				$result['installed'] = true;
+				return $result;
+		},
+		get_available_languages()
+	);
+
+	if ( $args['show_option_en_US'] ) {
+		array_unshift(
+			$languages,
+			array(
+				'locale'     => 'en_US',
+				'nativeName' => 'English (United States)',
+				'lang'       => 'en',
+				'installed'  => true,
+			)
+		);
+	}
+
+	$options = array_merge(
+		$languages,
+		$translations
+	);
 
 	$preferred_languages = array();
 
 	foreach ( (array) $args['selected'] as $locale ) {
-		if ( isset( $translations[ $locale ] ) ) {
-			$translation = $translations[ $locale ];
+		if ( 'en_US' === $locale ) {
+			continue;
+		}
 
-			$preferred_languages[] = array(
-				'language'    => $translation['language'],
-				'native_name' => $translation['native_name'],
-				'lang'        => current( $translation['iso'] ),
-			);
-		} elseif ( 'en_US' !== $locale ) {
-			$preferred_languages[] = array(
-				'language'    => $locale,
-				'native_name' => $locale,
-				'lang'        => '',
-			);
+		if ( isset( $options[ $locale ] ) ) {
+			$preferred_languages[] = $options[ $locale ];
 		} else {
 			$preferred_languages[] = array(
-				'language'    => $locale,
-				'native_name' => 'English (United States)',
-				'lang'        => 'en',
+				'locale'     => $locale,
+				'nativeName' => $locale,
+				'lang'       => '',
+				'installed'  => false,
 			);
 		}
 	}
 
-	/* translators: accessibility text */
-	$label_up = __( 'Move up (Alt+Up)', 'preferred-languages' );
+	$props = array(
+		'currentLocale'          => get_locale(),
+		'preferredLanguages'     => $preferred_languages,
+		'options'                => array_values( $options ),
+		'hasMissingTranslations' => false,
+	);
 
-	/* translators: accessibility text */
-	$label_down = __( 'Move down (Alt+Down)', 'preferred-languages' );
-
-	/* translators: accessibility text */
-	$label_remove = __( 'Remove from list (Alt+Delete)', 'preferred-languages' );
-
-	/* translators: accessibility text */
-	$label_add = __( 'Add to list (Alt+A)', 'preferred-languages' );
-
-	?>
-	<div class="preferred-languages">
-		<input type="hidden" name="preferred_languages" value="<?php echo esc_attr( implode( ',', $args['selected'] ) ); ?>"/>
-		<p><?php _e( 'Choose languages for displaying WordPress in, in order of preference.', 'preferred-languages' ); ?></p>
-		<div class="active-locales wp-clearfix">
-			<?php
-			/* translators: %s: English (United States) */
-			$screen_reader_text = sprintf( __( 'No languages selected. Falling back to %s.', 'preferred-languages' ), 'English (United States)' );
-
-			if ( true === $args['show_option_site_default'] ) {
-				$screen_reader_text = __( 'No languages selected. Falling back to Site Default.', 'preferred-languages' );
+	if ( current_user_can( 'install_languages' ) ) {
+		foreach ( (array) $args['selected'] as $locale ) {
+			if ( 'en_US' === $locale ) {
+				continue;
 			}
-			?>
-			<div class="<?php echo ! empty( $preferred_languages ) ? 'hidden' : ''; ?>" id="active-locales-empty-message" data-a11y-message="<?php echo esc_attr( $screen_reader_text ); ?>">
-				<?php _e( 'Nothing set.', 'preferred-languages' ); ?>
-				<br>
-				<?php
-				if ( true === $args['show_option_site_default'] ) {
-					_e( 'Falling back to Site Default.', 'preferred-languages' );
-				} else {
-					/* translators: %s: English (United States) */
-					printf( __( 'Falling back to %s.', 'preferred-languages' ), 'English (United States)' );
-				}
-				?>
-			</div>
-			<ul
-				role="listbox"
-				aria-labelledby="preferred-languages-label"
-				tabindex="0"
-				aria-activedescendant="<?php echo empty( $preferred_languages ) ? '' : esc_attr( get_locale() ); ?>"
-				id="preferred_languages"
-				class="active-locales-list <?php echo empty( $preferred_languages ) ? 'empty-list' : ''; ?>">
-				<?php foreach ( $preferred_languages as $language ) : ?>
-					<li
-						role="option"
-						aria-selected="<?php echo get_locale() === $language['language'] ? 'true' : 'false'; ?>"
-						id="<?php echo esc_attr( $language['language'] ); ?>"
-						class="active-locale">
-						<?php echo esc_html( $language['native_name'] ); ?>
-					</li>
-				<?php endforeach; ?>
-			</ul>
-			<div class="active-locales-controls">
-				<ul>
-					<li>
-						<button
-							aria-keyshortcuts="Alt+ArrowUp"
-							aria-label="<?php esc_attr( $label_up ); ?>"
-							aria-disabled="false"
-							data-tooltip="Alt+Up"
-							type="button"
-							class="button locales-move-up tooltipped">
-							<?php _e( 'Move Up', 'preferred-languages' ); ?>
-						</button>
-					</li>
-					<li>
-						<button
-							aria-keyshortcuts="Alt+ArrowDown"
-							aria-label="<?php esc_attr( $label_down ); ?>"
-							aria-disabled="false"
-							data-tooltip="Alt+Down"
-							type="button"
-							class="button locales-move-down tooltipped">
-							<?php _e( 'Move Down', 'preferred-languages' ); ?>
-						</button>
-					</li>
-					<li>
-						<button
-							aria-keyshortcuts="Alt+Delete"
-							aria-label="<?php esc_attr( $label_remove ); ?>"
-							aria-disabled="false"
-							data-tooltip="Alt+Delete"
-							type="button"
-							class="button locales-remove tooltipped">
-							<?php _e( 'Remove', 'preferred-languages' ); ?>
-						</button>
-					</li>
-				</ul>
-			</div>
-		</div>
-		<div class="inactive-locales wp-clearfix">
-			<label class="screen-reader-text" for="preferred-languages-inactive-locales"><?php _e( 'Inactive Locales', 'preferred-languages' ); ?></label>
-			<div class="inactive-locales-list" data-show-en_US="<?php echo $args['show_option_en_US'] ? 'true' : 'false'; ?>">
-				<?php
-				wp_dropdown_languages(
-					array(
-						'id'                          => 'preferred-languages-inactive-locales',
-						'name'                        => 'preferred-languages-inactive-locales',
-						'languages'                   => $languages,
-						'translations'                => $translations,
-						'show_available_translations' => $args['show_available_translations'],
-					)
-				);
-				?>
-			</div>
-			<div class="inactive-locales-controls">
-				<button
-					aria-keyshortcuts="Alt+A"
-					aria-label="<?php esc_attr( $label_add ); ?>"
-					aria-disabled="false"
-					data-tooltip="Alt+A"
-					type="button"
-					class="button locales-add tooltipped"
-				>
-					<?php _e( 'Add', 'preferred-languages' ); ?>
-				</button>
-			</div>
-		</div>
-		<?php
-		if ( current_user_can( 'install_languages' ) ) {
-			foreach ( $preferred_languages as $language ) {
-				if ( 'en_US' === $language['language'] ) {
-					continue;
-				}
 
-				if ( ! in_array( $language['language'], get_available_languages(), true ) ) {
-					?>
-					<div class="notice notice-warning inline">
-						<p>
-							<?php _e( 'Some of the languages are not installed. Re-save changes to download translations.', 'preferred-languages' ); ?>
-						</p>
-					</div>
-					<?php
-					break;
-				}
+			if ( ! in_array( $locale, $languages, true ) ) {
+				$props['hasMissingTranslations'] = true;
+				break;
 			}
 		}
-		?>
-	</div>
+	}
+
+	wp_add_inline_script(
+		'preferred-languages',
+		sprintf(
+			'window.PreferredLanguages.render(\'%1$s\',%2$s);',
+			esc_js( 'preferred-languages-root-' . $instance ),
+			wp_json_encode( $props )
+		)
+	);
+
+	?>
+	<div
+			id="<?php echo esc_attr( 'preferred-languages-root-' . $instance ); ?>"></div>
 	<?php
 }
 

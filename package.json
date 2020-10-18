@@ -13,27 +13,29 @@
   },
   "homepage": "https://github.com/swissspidy/preferred-languages#readme",
   "devDependencies": {
-    "@babel/cli": "^7.11.5",
-    "@babel/core": "^7.10.5",
-    "@babel/preset-env": "^7.11.5",
+    "@wordpress/a11y": "^2.13.0",
+    "@wordpress/components": "^11.0.1",
+    "@wordpress/data": "^4.24.0",
+    "@wordpress/element": "^2.18.0",
+    "@wordpress/env": "^2.1.0",
     "@wordpress/eslint-plugin": "^7.3.0",
-    "autoprefixer": "^9.8.6",
-    "cssnano": "^4.1.8",
-    "eslint": "^7.8.1",
-    "nodemon": "^2.0.4",
-    "postcss": "^7.0.32",
-    "rtlcss": "^2.5.0",
-    "uglify-js": "^3.10.3"
+    "@wordpress/i18n": "^3.16.0",
+    "@wordpress/keycodes": "^2.16.0",
+    "@wordpress/scripts": "^12.3.0"
   },
   "scripts": {
-    "uglifyjs": "find js -type f -name '*.js' ! -name '*.min.js' -maxdepth 1 | while read FILE ; do uglifyjs \"${FILE}\" -o \"${FILE%.js}.min.js\" ; done",
-    "rtlcss": "rtlcss css/preferred-languages.css css/preferred-languages-rtl.css",
-    "build:css": "postcss css/src/preferred-languages.css -o css/preferred-languages.css && npm run rtlcss",
-    "build:js": "babel js/src -d js && npm run uglifyjs",
-    "build": "npm run build:css && npm run build:js",
-    "lint": "eslint .",
-    "watch:css": "nodemon --watch css/src -e css -x 'npm run build:css'",
-    "watch:js": "nodemon --watch js/src -e js -x 'npm run build:js'",
-    "watch": "nodemon --watch css/src --watch js/src -e css,js -x 'npm run build'"
+    "build": "wp-scripts build src/preferred-languages.js",
+    "check-engines": "wp-scripts check-engines",
+    "check-licenses": "wp-scripts check-licenses",
+    "format:js": "wp-scripts format-js",
+    "lint:css": "wp-scripts lint-style",
+    "lint:js": "wp-scripts lint-js",
+    "lint:md:docs": "wp-scripts lint-md-docs",
+    "lint:md:js": "wp-scripts lint-md-js",
+    "lint:pkg-json": "wp-scripts lint-pkg-json",
+    "packages-update": "wp-scripts packages-update",
+    "start": "wp-scripts start src/preferred-languages.js",
+    "test:e2e": "wp-scripts test-e2e",
+    "test:unit": "wp-scripts test-unit-js"
   }
 }

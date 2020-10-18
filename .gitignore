@@ -1,10 +1,7 @@
-# Composer
-composer.lock
-vendor/
-
-# npm
+build/
 node_modules/
-
-# Built files
-js/*.js
-css/*.css
+vendor/
+.wp-env.override.json
+composer.lock
+phpcs.xml
+phpunit.xml

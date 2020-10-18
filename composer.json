@@ -1,7 +1,7 @@
 {
   "name": "swissspidy/preferred-languages",
-  "description": "Choose languages for displaying WordPress in, in order of preference.",
   "type": "wordpress-plugin",
+  "description": "Choose languages for displaying WordPress in, in order of preference.",
   "license": "GPL-2.0-or-later",
   "authors": [
     {
@@ -12,13 +12,13 @@
     }
   ],
   "require": {
-    "php": ">=5.2.4"
+    "php": ">=5.6.20"
   },
   "require-dev": {
     "dealerdirect/phpcodesniffer-composer-installer": "^0.7.0",
-    "wp-coding-standards/wpcs": "^2.1",
     "phpcompatibility/phpcompatibility-wp": "^2.0",
-    "phpunit/phpunit": "^9"
+    "phpunit/phpunit": "^9",
+    "wp-coding-standards/wpcs": "^2.1"
   },
   "scripts": {
     "format": "vendor/bin/phpcbf --report-summary --report-source .",
